@@ -26,7 +26,7 @@ UP, DOWN, LEFT, RIGHT = (0, -1), (0, +1), (-1, 0), (+1, 0)
 
 def in_scope(tile):
     """Vrai si la case `tile` = (x, y) est sur le plateau."""
-    if 0<=tile[0]<X and 0<tile[1]<1:
+    if 0<=tile[0]<X and 0<tile[1]<Y:
         return True
     else:
         return False
@@ -36,10 +36,22 @@ def next_head(snake, direction):
     """La case où arrive la tête (le dernier élément de `snake`)."""
     return (snake[-1][0]+direction[0],snake[-1][1]+direction[1])
 
-
+KEYS={pg.K_UP, pg.K_DOWN, pg.K_LEFT, pg.K_RIGHT}
 def turn(direction, key):
     """La nouvelle direction après l'appui sur la touche `key` (ex. pg.K_UP)."""
-    raise NotImplementedError("étape 6")
+    nv=direction
+    if key==pg.K_UP:
+        nv=UP
+    elif key==pg.K_DOWN:
+        nv=DOWN
+    elif key==pg.K_LEFT:
+        nv=LEFT
+    elif key==pg.K_RIGHT:
+        nv=RIGHT
+    #bloque demi-tour
+    if (nv[0]+direction[0]==0) and (nv[1]+direction[1]==0):
+        return direction
+    return nv
 
 
 def move(snake, direction, fruit):
@@ -70,10 +82,10 @@ def random_fruit(snake):
     """Une case libre du plateau, tirée au hasard."""
     x=random.randint(0,X-1)
     y=random.randint(0,Y-1)
-    while [x,y] in snake :
+    while (x,y) in snake :
         x=random.randint(0,X-1)
         y=random.randint(0,Y-1)
-    return [x,y]
+    return (x,y)
 
 
 
@@ -94,9 +106,11 @@ def main():
         pg.display.set_caption(f"score:{len(snake)}")
         # 1. les événements : il faut les lire, sinon la fenêtre ne répond pas
         for event in pg.event.get():
-            if event.type == pg.QUIT or (event.type == pg.KEYDOWN and event.key == pg.K_q):
+            if event.type == pg.QUIT or (event.type == pg.KEYDOWN and event.key == pg.K_q): #vérifie si a coché la croix rouge ou a appuyé sur la touche Echap
                 running =False
-
+            #changement de direction
+            elif event.type==pg.KEYDOWN and event.key in KEYS: #vérifie si une touche du clavier qui fait partie de l'ensemble KEYS a été enfoncé
+                direction=turn(direction,event.key)
         # 2. l'état (rien pour l'instant)
         outcome=move(snake,direction,fruit)
         if outcome=="ate":
@@ -120,26 +134,15 @@ def main():
         for i in snake:
             rect_snake=pg.Rect(i[0]*W,i[1]*H,W,H)
             pg.draw.rect(screen, (255,0,0), rect_snake)
+
+        # 5. l'affichage du fruit
+        rect_fruit=pg.Rect(fruit[0]*W,fruit[1]*H,W,H)
+        pg.draw.rect(screen,(34,139,34),rect_fruit)
         # ... puis on l'envoie à l'écran, une seule fois par tour de boucle
         pg.display.update() #ca affiche la mise à jour de l'écran
     print(f"Game over. score final:{len(snake)}")
 pg.quit()
 
-KEYS={pg.K_UP, pg.K_DOWN, pg.K_LEFT, pg.K_RIGHT}
-def turn(direction, key):
-    nv=direction
-    if key==pg.K_UP:
-        nv=UP
-    elif key==pg.K_DOWN:
-        nv=DOWN
-    elif key==pg.K_LEFT:
-        nv=LEFT
-    elif key==pg.K_RIGHT:
-        nv=RIGHT
-    #bloque demi-tour
-    if (nv[0]+direction[0]==0) and (nv[1]+direction[1]==0):
-        return direction
-    return nv
 
 # Ce bloc ne s'exécute que si l'on lance ce fichier (uv run snake.py),
 # pas quand un autre fichier fait `import snake` (les tests, par ex.).
