@@ -48,33 +48,80 @@ class Boid(arcade.Sprite): #boid appartient à Boid qui est inclu ds Sprite
         super().__init__(ARROW, center_x=x, center_y=y, angle=angle)
         self.speed = speed
 
+        self.turning=0
+
+        if others is None:
+            self.others = []
+        else:
+            self.others = others
+
     def update(self, delta_time=1 / 60, *args, **kwargs):
         """Appelée par arcade (via la SpriteList) à chaque mise à jour."""
-        #raise NotImplementedError("étapes 2, 3, 5, 7 et 8")
         #conversion de l'angle en radians
         rad = math.radians(self.angle)
         
+        vx = self.speed * math.cos(rad)
+        vy = -self.speed * math.sin(rad)
+
+        dx,dy=self.separation(self.others)
         #déplacement trigonométrique sur les axes x et y 
-        self.center_x += (self.speed * math.cos(rad))
-        self.center_y -= (self.speed * math.sin(rad))
+        #self.center_x += (self.speed * math.cos(rad))
+        #self.center_y -= (self.speed * math.sin(rad))
+        
+        #on prend en compte la séparation
+        self.center_x += vx + (dx*self.speed * delta_time)
+        self.center_y += vy + (dy*self.speed * delta_time)
         self.center_x = self.center_x%WIDTH
         self.center_y = self.center_y%HEIGHT
 
+        #rotation
+        self.angle += self.turning * TURN_SPEED * delta_time
+        bruit = random.uniform(-NOISE, NOISE)
+        self.angle += bruit
+
+        #boid transparent s'il a au moins un voisin
+        voisins=self.neighbours(self.others)
+        if len(voisins)>0:
+            self.alpha=127 #à moitié transparent
+        else:
+            self.alpha=255 #opaque
+                
+
     def neighbours(self, others, radius=RADIUS):
         """Les objets de `others` à moins de `radius` pixels, sauf soi-même."""
-        raise NotImplementedError("étape 7")
-
+        liste_voisins=[]
+        for other in others:
+            if other is not self : #si le boid n'est pas lui=même
+                #calcul de la distance entre les deux sprites
+                distance=math.dist(self.position, other.position)
+                if distance < radius :
+                    liste_voisins.append(other)
+        return liste_voisins
+    
     def separation(self, others, radius=RADIUS):
         """Le déplacement (dx, dy) qui écarte le boid de ses voisins."""
-        raise NotImplementedError("étape 8")
+        dx = 0.0
+        dy = 0.0
+        for other in others:
+            if other is not self:
+                d = math.dist(self.position, other.position)
+                if d < radius and d > 0:  # d > 0 évite une division par zéro si deux boids sont superposés
+                    # vecteur unitaire ob (direction de o vers b)
+                    ob_x = (self.center_x - other.center_x) / d
+                    ob_y = (self.center_y - other.center_y) / d
+                    delta = 1/2 * (1 - (d / radius))
+                    #On fait la somme de ces déplacements 
+                    dx += ob_x * delta
+                    dy += ob_y * delta
+                    
+        return (dx,dy)
 
 
 class Obstacle(arcade.Sprite):
     """Un obstacle immobile."""
 
     def __init__(self, x, y):
-        raise NotImplementedError("étape 6")
-
+        super().__init__(OBSTACLE, center_x=x, center_y=y)
 
 def random_boids(n, others=None):
     """n boids placés et orientés au hasard, qui évitent tous `others`."""
@@ -82,7 +129,8 @@ def random_boids(n, others=None):
     for i in range (n):
         x=random.uniform(0,WIDTH)
         y=random.uniform(0,HEIGHT)
-        nv_boid=Boid(x,y,others=others)
+        angle=random.randint(0,360)
+        nv_boid=Boid(x,y,angle,others=others)
         liste_boids.append(nv_boid)
     return liste_boids
 
@@ -90,8 +138,15 @@ def random_boids(n, others=None):
 
 def obstacle_grid(n):
     """n × n obstacles régulièrement espacés, au centre de leur carré."""
-    raise NotImplementedError("étape 6")
-
+    liste_obstacles=[]
+    for i in range (n):
+        for j in range (n):
+            x=40 + i*80
+            y=40 + j*80
+            #on cré notre obstacle
+            obstacle=Obstacle(x,y)
+            liste_obstacles.append(obstacle)
+    return liste_obstacles
 
 # --- la fenêtre ---------------------------------------------------------------
 
@@ -103,13 +158,20 @@ class MyWindow(arcade.Window):
         super().__init__(WIDTH, HEIGHT, "Boids")
         self.background_color = BACKGROUND  # la couleur que self.clear() étale
 
-        # pour l'instant, un simple Sprite : une image posée en (100, 100),
-        # comptés depuis le coin en bas à gauche
-        #boid = arcade.Sprite(ARROW, center_x=100, center_y=100)
-        boid=Boid(100,100,30)
+        self.EVERYTHING=[]
+
         # une SpriteList : une liste de sprites, qu'arcade dessine d'un coup
+        #1ere SpriteListe
         self.boids = arcade.SpriteList()
-        self.boids.append(boid)
+        les_boids=random_boids(N_BOIDS,others=self.boids)
+        self.boids.extend(les_boids)
+        self.EVERYTHING.extend(les_boids)
+        #2e SpriteListe
+        self.obstacles=arcade.SpriteList()
+        grille=obstacle_grid(GRID)
+        self.obstacles.extend(grille)
+        self.EVERYTHING.extend(grille)
+
 
     def on_update(self, delta_time):
         self.boids.update(delta_time)
@@ -117,7 +179,27 @@ class MyWindow(arcade.Window):
 
     def on_draw(self):
         self.clear()
+        self.obstacles.draw()
         self.boids.draw()
+
+
+    def on_key_press(self, symbol, modifiers): 
+    # symbol vaut arcade.key.LEFT, arcade.key.RIGHT, arcade.key.Q…
+    #quand on appuie sur la touche, le boid tourne
+        if key==arcade.key.LEFT:
+            for boid in self.boids:
+                boid.turning=-1 #tourne à gauche
+        elif key==arcade.key.RIGHT:
+            for boid in self.boids:
+                boid.turning=1
+        elif key==arcade.key.Q:
+            self.close()
+
+    def on_key_release(self, symbol, modifiers):
+    #quand on relache la touche, le boid arrête de tourner       
+        if key in (arcade.key.LEFT, arcade.key.RIGHT):
+            for boid in self.boids:
+                boid.turning = 0
 
 
 def main():
