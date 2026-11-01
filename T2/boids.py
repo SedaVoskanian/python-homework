@@ -7,8 +7,8 @@ Lancez-le avec :  uv run boids.py
 Testez-le avec :  uv run pytest
 """
 
-import math  # noqa: F401 (servira à l'étape 2)
-import random  # noqa: F401 (servira à l'étape 4)
+import math
+import random
 from pathlib import Path
 
 import arcade
@@ -60,8 +60,8 @@ class Boid(arcade.Sprite): #boid appartient à Boid qui est inclu ds Sprite
         #conversion de l'angle en radians
         rad = math.radians(self.angle)
         
-        vx = self.speed * math.cos(rad)
-        vy = -self.speed * math.sin(rad)
+        vx = self.speed * math.cos(rad)#*delta_time
+        vy = -self.speed * math.sin(rad)#*delta_time
 
         dx,dy=self.separation(self.others)
         #déplacement trigonométrique sur les axes x et y 
@@ -69,8 +69,8 @@ class Boid(arcade.Sprite): #boid appartient à Boid qui est inclu ds Sprite
         #self.center_y -= (self.speed * math.sin(rad))
         
         #on prend en compte la séparation
-        self.center_x += vx + (dx*self.speed * delta_time)
-        self.center_y += vy + (dy*self.speed * delta_time)
+        self.center_x += vx + dx #je n'ai pas multiplié dx*self.speed par delta_time pour l'evitement soit plus efficace
+        self.center_y += vy + dy
         self.center_x = self.center_x%WIDTH
         self.center_y = self.center_y%HEIGHT
 
@@ -106,9 +106,9 @@ class Boid(arcade.Sprite): #boid appartient à Boid qui est inclu ds Sprite
             if other is not self:
                 d = math.dist(self.position, other.position)
                 if d < radius and d > 0:  # d > 0 évite une division par zéro si deux boids sont superposés
-                    # vecteur unitaire ob (direction de o vers b)
-                    ob_x = (self.center_x - other.center_x) / d
-                    ob_y = (self.center_y - other.center_y) / d
+                    # distance entre o et b
+                    ob_x = (self.center_x - other.center_x)
+                    ob_y = (self.center_y - other.center_y)
                     delta = 1/2 * (1 - (d / radius))
                     #On fait la somme de ces déplacements 
                     dx += ob_x * delta
@@ -162,15 +162,23 @@ class MyWindow(arcade.Window):
 
         # une SpriteList : une liste de sprites, qu'arcade dessine d'un coup
         #1ere SpriteListe
-        self.boids = arcade.SpriteList()
-        les_boids=random_boids(N_BOIDS,others=self.boids)
-        self.boids.extend(les_boids)
-        self.EVERYTHING.extend(les_boids)
-        #2e SpriteListe
         self.obstacles=arcade.SpriteList()
         grille=obstacle_grid(GRID)
         self.obstacles.extend(grille)
         self.EVERYTHING.extend(grille)
+        #2e SpriteListe
+        self.boids = arcade.SpriteList()
+        les_boids=random_boids(N_BOIDS,others=self.EVERYTHING)
+        self.boids.extend(les_boids)
+        self.EVERYTHING.extend(les_boids)
+        #3e
+        self.sky = arcade.SpriteList()
+        sky = arcade.Sprite(SKY, center_x=WIDTH/2, center_y=HEIGHT/2)
+        #on ajuste la taille de l'image
+        sky.width = WIDTH
+        sky.height = HEIGHT
+        self.sky.append(sky)
+
 
 
     def on_update(self, delta_time):
@@ -179,25 +187,27 @@ class MyWindow(arcade.Window):
 
     def on_draw(self):
         self.clear()
+        self.sky.draw()
         self.obstacles.draw()
         self.boids.draw()
+
 
 
     def on_key_press(self, symbol, modifiers): 
     # symbol vaut arcade.key.LEFT, arcade.key.RIGHT, arcade.key.Q…
     #quand on appuie sur la touche, le boid tourne
-        if key==arcade.key.LEFT:
+        if symbol==arcade.key.LEFT:
             for boid in self.boids:
                 boid.turning=-1 #tourne à gauche
-        elif key==arcade.key.RIGHT:
+        elif symbol==arcade.key.RIGHT:
             for boid in self.boids:
                 boid.turning=1
-        elif key==arcade.key.Q:
+        elif symbol==arcade.key.Q:
             self.close()
 
     def on_key_release(self, symbol, modifiers):
     #quand on relache la touche, le boid arrête de tourner       
-        if key in (arcade.key.LEFT, arcade.key.RIGHT):
+        if symbol in (arcade.key.LEFT, arcade.key.RIGHT):
             for boid in self.boids:
                 boid.turning = 0
 
