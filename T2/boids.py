@@ -22,7 +22,7 @@ ARROW = HERE / "media" / "arrow.png"
 OBSTACLE = HERE / "media" / "obstacle.png"
 SKY = HERE / "media" / "sky.png"  # le décor (étape 9)
 
-SPEED = 1  # pixels par seconde (étape 2)
+SPEED = 100  # pixels par seconde (étape 2)
 TURN_SPEED = 180  # degrés par seconde, tant qu'une flèche est enfoncée (étape 5)
 NOISE = 3  # écart maximal du cap à chaque mise à jour, en degrés (étape 5)
 N_BOIDS = 20  # (étape 4)
@@ -47,7 +47,6 @@ class Boid(arcade.Sprite): #boid appartient à Boid qui est inclu ds Sprite
     def __init__(self, x, y, angle, speed=SPEED, others=None):
         super().__init__(ARROW, center_x=x, center_y=y, angle=angle)
         self.speed = speed
-
         self.turning=0
 
         if others is None:
@@ -57,20 +56,14 @@ class Boid(arcade.Sprite): #boid appartient à Boid qui est inclu ds Sprite
 
     def update(self, delta_time=1 / 60, *args, **kwargs):
         """Appelée par arcade (via la SpriteList) à chaque mise à jour."""
-        #conversion de l'angle en radians
+        #conversion de l'angle en rarun ruff cdians
         rad = math.radians(self.angle)
-        
-        vx = self.speed * math.cos(rad)#*delta_time
-        vy = -self.speed * math.sin(rad)#*delta_time
-
+ 
         dx,dy=self.separation(self.others)
-        #déplacement trigonométrique sur les axes x et y 
-        #self.center_x += (self.speed * math.cos(rad))
-        #self.center_y -= (self.speed * math.sin(rad))
-        
-        #on prend en compte la séparation
-        self.center_x += vx + dx #je n'ai pas multiplié dx*self.speed par delta_time pour l'evitement soit plus efficace
-        self.center_y += vy + dy
+        self.center_x += self.speed * math.cos(rad)*delta_time + dx #quand je multiplie self.speed * math.cos(rad) par delta_time, mes boids ne bougent plus
+        self.center_y += -self.speed * math.sin(rad)*delta_time + dy
+
+        #reapparition des boids
         self.center_x = self.center_x%WIDTH
         self.center_y = self.center_y%HEIGHT
 
@@ -102,6 +95,8 @@ class Boid(arcade.Sprite): #boid appartient à Boid qui est inclu ds Sprite
         """Le déplacement (dx, dy) qui écarte le boid de ses voisins."""
         dx = 0.0
         dy = 0.0
+        if others is None:
+            others = self.others
         for other in others:
             if other is not self:
                 d = math.dist(self.position, other.position)
@@ -174,6 +169,7 @@ class MyWindow(arcade.Window):
         #3e
         self.sky = arcade.SpriteList()
         sky = arcade.Sprite(SKY, center_x=WIDTH/2, center_y=HEIGHT/2)
+        
         #on ajuste la taille de l'image
         sky.width = WIDTH
         sky.height = HEIGHT
